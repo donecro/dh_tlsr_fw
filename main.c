@@ -536,26 +536,62 @@ static void at_process_line(u8 *cmd, u8 len)
     while (len > 0 && (cmd[len-1]=='\r'||cmd[len-1]=='\n'||cmd[len-1]==' ')) cmd[--len]=0;
     if (len == 0) return;
 
-    if (len==2 && cmd[0]=='A' && cmd[1]=='T')                    { at_handle_basic(); }
-    else if (len>=8 && memcmp(cmd,"AT+INFO",7)==0)                { at_handle_info(); }
-    else if (len>=10 && memcmp(cmd,"AT+STATUS",9)==0)             { at_handle_status(); }
-    else if (len>=5 && memcmp(cmd,"AT+BC",5)==0)                  { at_handle_bc(); }
-    else if (len>=8 && memcmp(cmd,"AT+OFFBC",8)==0)               { at_handle_offbc(); }
-    else if (len>=10 && memcmp(cmd,"AT+MESH=ON",10)==0)           { at_handle_mesh_on(); }
-    else if (len>=11 && memcmp(cmd,"AT+MESH=OFF",11)==0)          { at_handle_mesh_off(); }
-    else if (len>=5 && memcmp(cmd,"AT+LOG",6)==0)                 { at_handle_log(); }
-    else if (len>=9 && memcmp(cmd,"AT+LOG=",7)==0) {
-        g_config.log_level = cmd[7] - '0';
-        g_config.log_level = (g_config.log_level > LOG_LEVEL_DEBUG) ? LOG_LEVEL_DEBUG : g_config.log_level;
-        config_save();
-        uart_log_printf("Log level set to %d\r\nOK\r\n", g_config.log_level);
-    }
-    else if (len>=12 && memcmp(cmd,"AT+MESH=ADDR,",13)==0) {
-        /* AT+MESH=ADDR,0x0001 */
-        /* TODO: parse and set mesh address */
+    /* AT */
+    if (len==2 && cmd[0]=='A' && cmd[1]=='T') {
         uart_log_print("OK\r\n");
     }
-    else { uart_log_print("ERROR: Unknown command\r\n"); }
+    /* AT+INFO */
+    else if (len==8 && memcmp(cmd,"AT+INFO",7)==0) {
+        at_handle_info();
+    }
+    /* AT+STATUS */
+    else if (len==10 && memcmp(cmd,"AT+STATUS",9)==0) {
+        at_handle_status();
+    }
+    /* AT+BC */
+    else if (len==5 && memcmp(cmd,"AT+BC",5)==0) {
+        at_handle_bc();
+    }
+    /* AT+OFFBC */
+    else if (len==8 && memcmp(cmd,"AT+OFFBC",8)==0) {
+        at_handle_offbc();
+    }
+    /* AT+MESH=ON */
+    else if (len==10 && memcmp(cmd,"AT+MESH=ON",10)==0) {
+        at_handle_mesh_on();
+    }
+    /* AT+MESH=OFF */
+    else if (len==11 && memcmp(cmd,"AT+MESH=OFF",11)==0) {
+        at_handle_mesh_off();
+    }
+    /* AT+LOG */
+    else if (len==6 && memcmp(cmd,"AT+LOG",6)==0) {
+        at_handle_log();
+    }
+    /* AT+LOG=n */
+    else if (len==8 && memcmp(cmd,"AT+LOG=",7)==0) {
+        u8 level = cmd[7] - '0';
+        if (level > LOG_LEVEL_DEBUG) {
+            uart_log_print("ERROR\r\n");
+        } else {
+            g_config.log_level = level;
+            config_save();
+            uart_log_printf("Log level: %d\r\nOK\r\n", g_config.log_level);
+        }
+    }
+    /* AT+MESH=ADDR,xxxx */
+    else if (len >= 13 && memcmp(cmd,"AT+MESH=ADDR,",13)==0) {
+        /* TODO: parse hex address */
+        uart_log_print("OK\r\n");
+    }
+    /* 以 AT 开头但不匹配任何已知指令 → NO CMD */
+    else if (len >= 2 && cmd[0]=='A' && cmd[1]=='T') {
+        uart_log_print("NO CMD\r\n");
+    }
+    /* 非 AT 指令 → ERROR */
+    else {
+        uart_log_print("ERROR\r\n");
+    }
 }
 
 void at_cmd_init(void)
